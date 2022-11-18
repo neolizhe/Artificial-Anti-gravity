@@ -1,0 +1,151 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+function Feed(options) {
+
+    this.opt =
+    {
+        url: "",
+        div_id: "",
+    }
+}
+
+
+Feed.prototype = {
+
+    init: function(options) {
+        if (typeof options == "object" && options) {
+            $.extend(this.opt, options);
+        }
+
+    },
+
+    /*
+     * params Object {url:val, journal_id: val, volume_select_list_id: val},
+     */
+    createSubjectAreaList: function(params) {
+        if (!params.alert) {
+            params.alert = 0;
+        }
+
+        $.ajax({
+            type: "GET",
+            context: this,
+            url: params.url + "?id="+params.id+"&alert="+params.alert,
+            success: function(data) {
+                condition = params.alert == 1 ? 'option' : 'option:not(:first)'
+                $('[id='+params.field_id+']').find(condition).remove();
+                var list = $('[id='+params.field_id+']');//$('#' + params.field_id)[0];
+                //var list = $('[id='+params.field_id+']')[1];
+                $.each(data, function(index, obj) {
+                   //list.options[list.options.length] = new Option(obj.text, obj.id);
+                   list.append('<option value="'+obj.id+'">'+obj.text+'</option>');
+                });
+            },
+            error: function(data, textStatus, jqXHR) {
+                console.log('Something happened wrong ');
+            }
+        });
+    },
+
+    // 2016-01-29 Juha Javanainen: reflow the foundation equalizer when needed so that the user messages don't cause the feed to overflow
+    createFeed: function(params) {
+
+        $.ajax({
+            type: "POST",
+            context: this,
+            url: params.url,
+            data: params.data,
+            success: function(response) {
+                $(".error").remove();
+                $("#success").remove();
+                var wrapper = $(params.target).parents(".feeds-wrapper");
+                if (response.status == "ERROR" && response.messages.length > 0) {
+                    for (var i in response.messages) {
+                        $.each(response.messages[i], function(index, message) {
+                            $( "<small class=\"error\">"+message+"</small>" ).insertAfter($('[id='+index+']', wrapper));
+                        });
+                    }
+                } else if (response.status == "OK") {
+                    $( "<small id=\"success\" class=\"alert-box success\">Feed successfully added</small>" ).insertBefore($('.success-msg', wrapper));
+                    wrapper.find(".feeds-text").html("Thank you for subscribing! You may continue select and subcribe to another subject area.");
+                    $("#success").fadeOut(3000, function(){
+                        $("#success", wrapper).remove();
+                        $(document).foundation('equalizer', 'reflow');
+                    });
+                }
+                $(document).foundation('equalizer', 'reflow');
+            },
+            error: function(data, textStatus, jqXHR) {
+                console.log('Something happened wrong ');
+            }
+        });
+    },
+
+    createSubjectAreaListBySystemName: function(params) {
+
+        $.ajax({
+            type: "GET",
+            context: this,
+            url: params.url + "?name_system="+params.name_system,
+            success: function(data) {
+                $('[id='+params.field_id+']').find('option:not(:first)').remove();
+                var list = $('[id='+params.field_id+']');//$('#' + params.field_id)[0];
+                //var list = $('[id='+params.field_id+']')[1];
+                $.each(data, function(index, obj) {
+                   //list.options[list.options.length] = new Option(obj.text, obj.id);
+                   list.append('<option value="'+obj.name_system+'">'+obj.text+'</option>');
+                });
+            },
+            error: function(data, textStatus, jqXHR) {
+                console.log('Something happened wrong ');
+            }
+        });
+    },
+
+    updateAlert: function(params) {
+
+        $.ajax({
+            type: "POST",
+            data: params,
+            context: this,
+            url: params.url,
+            success: function(data) {
+                if ($("#success").length > 0) {
+                    $("#success").remove();
+                }
+                $( "<small id=\"success\" class=\"alert-box success\">Data successfully update</small>" ).insertBefore('table');
+                if ($("#success").length > 0) {
+                    $("#success").fadeOut(2000, function(){
+                        $("#success").remove();
+                    });
+                }
+            },
+            error: function(data, textStatus, jqXHR) {
+                console.log('Something happened wrong ');
+            }
+        });
+    },
+
+    deleteAlert: function(params) {
+
+        $.ajax({
+            type: "POST",
+            data: params,
+            context: this,
+            url: params.url,
+            success: function(data) {
+                $( "<small id=\"success\" class=\"alert-box success\">Data successfully delete</small>" ).insertBefore('table');
+                setTimeout(function () {
+                    location.reload()
+                }, 1000);
+            },
+            error: function(data, textStatus, jqXHR) {
+                console.log('Something happened wrong ');
+            }
+        });
+    }
+ }

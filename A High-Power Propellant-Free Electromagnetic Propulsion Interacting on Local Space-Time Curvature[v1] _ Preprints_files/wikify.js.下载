@@ -1,0 +1,977 @@
+
+function pad(n, width, z)
+{
+	z = z || '0';
+	n = n + '';
+	return n.length >= width ? n: new Array(width - n.length + 1).join(z) + n;
+}
+
+function wiki_has_selection(wiki) {
+	//wiki = document.getElementById(id);
+	if(wiki.selectionStart < wiki.selectionEnd) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+function isUrl(href) { 
+	var urlregex = new RegExp(	"^(http|https|ftp)\://([a-zA-Z0-9\.\-]+(\:[a-zA-Z0-9\.&amp;%\$\-]+)*@)*((25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])|([a-zA-Z0-9\-]+\.)*[a-zA-Z0-9\-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))(\:[0-9]+)*(/($|[a-zA-Z0-9\.\,\?\'\\\+&amp;%\$#\=~_\-]+))*$");
+	return urlregex.test(href);
+}
+
+function wiki_command(wiki, commandOpen, commandClose, positionOffest, commandFill) {
+		
+	//wiki = document.getElementById(wikiFieldId);
+	
+	if (wiki.selectionStart || wiki.selectionStart == '0') {
+	
+		var startPos = wiki.selectionStart;
+		var endPos = wiki.selectionEnd;
+		var prePart = wiki.value.substring(0, startPos);
+		var selectedPart = wiki.value.substring(startPos, endPos);
+		var postPart = wiki.value.substring(endPos, wiki.value.length);
+		
+		if(selectedPart == '')
+		{
+			selectedPart = commandFill;
+			endPos = endPos + commandFill.length;
+		}
+		
+		if(startPos==0 && endPos==0) {
+			commandClose += '\n';
+		}
+		
+		wiki.value = prePart + commandOpen + selectedPart + commandClose + postPart;
+		
+		// move the cursor to the middle of the wikicommand
+		wiki.setSelectionRange(startPos + positionOffest, startPos + positionOffest + (endPos - startPos));
+		
+	} else {
+	
+		alert('Your browser version is not compatible with this wiki editor. Please update your browser to the latest version to use the wiki editor menu. We support the latest versions of Mozilla Firefox, Google Chrome, Safari and Internet Explorer.')
+		
+	}
+	
+	// return the focus to the textarea
+	wiki.focus();
+	
+}
+	
+/**
+ * handling references & citations
+ */
+function wiki_cite(wikiField, refkey) {
+	if(refkey != null) {
+		wiki_command(wikiField, '[[cite:', ']]', 7, refkey);
+		//wiki_command(wikiField($(this)), '# ', '', 2, 'text');
+	}
+}
+
+/**
+ * Function for rendering citation information into container defined in parameter
+ * from JSON object according to locale and csl settings
+ *
+ * Note! locale and csl strings need to be defined prior to calling this function
+ *
+ * @param targetElementDiv container div where the resulting citation html will be inserted
+ * @param citationJson     JSON object containing the citation information
+ * 
+ */
+
+/*
+function renderCitation(targetElementDiv, citationJson, forCommentEdit)
+{
+	var citeprocSys = {
+		// Given a language tag in RFC-4646 form, this method retrieves the
+		// locale definition file.  This method must return a valid *serialized*
+		// CSL locale. (In other words, an blob of XML as an unparsed string.  The
+		// processor will fail on a native XML object or buffer).
+		retrieveLocale: function (lang)
+		{
+			return locale;   
+		},
+			
+		// Given an identifier, this retrieves one citation item.  This method
+		// must return a valid CSL-JSON object.
+		retrieveItem: function(id){
+			return citationJson[id];
+		}
+	};
+				
+	//var bibDiv = bibDivs[i];
+	var citeproc = new CSL.Engine(citeprocSys, csl);
+	citeproc.opt.development_extensions.wrap_url_and_doi = true;
+	
+	var itemIDs = [];
+	for (var key in citationJson) {
+		itemIDs.push(key);
+		
+	}
+				
+	citeproc.updateItems(itemIDs);
+	var bibResult = citeproc.makeBibliography();
+
+	if (forCommentEdit)
+	{
+		targetElementDiv.html("");
+		var htmlString = "<table>";
+		
+		var buttonsHtml = "<span class=\"fa fa-plus-square-o citation_btn_use\" title=\"Use citation\"></span><span class=\"fa fa-minus-square-o citation_btn_remove\" title=\"Remove citation\"></span><!--<span class=\"fa fa-edit citation_btn_edit\" title=\"Edit citation\"></span>-->";
+		
+		for (index = 0; index < bibResult[1].length; index++)
+		{
+			htmlString = htmlString + '<tr><td style="width: 60px;"><input type="hidden" class="citation_index" value="' + Object.keys(citationJson)[index] + '">' + buttonsHtml + '</td><td>' + bibResult[1][index] + '</td></tr>';
+			//targetElementDiv.html(targetElementDiv.html() + "<tr><td>" + buttonsHtml + "</td><td>" + bibResult[1][index] + "</td></tr>");
+		}
+		
+		htmlString = htmlString + "</table>";
+		targetElementDiv.html(htmlString);
+		
+		//targetElementDiv.html(bibResult[1].join('\n'));	
+	}
+	else
+	{
+		targetElementDiv.html(bibResult[1].join('\n'));
+	}
+}
+*/
+
+/**
+ * Helper function to parse person string into defined person array format
+ *
+ * @inputString string containing all author information (Lastname1, Firstname1; Lastname2, Firstname2)
+ */
+
+/*
+function parsePersonsInfo(inputString)
+{
+	var persons = inputString.split(";");
+	var result  = [];
+	
+	for (var index = 0; index < persons.length; index++)
+	{
+		var names = persons[index].split(",");
+		var name  = {};
+		
+		name['family'] = names[0].trim();
+		
+		if (names.length > 1)
+		{
+			name['given'] = names[1].trim();
+		}
+		
+		result.push(name);
+	}
+	
+	//alert(result);
+	return result;
+}
+*/
+
+/**
+ * Helper function to parse page strings from start and end pages
+ *
+ * @param startPage
+ * @param endPage
+ */
+/*
+function parsePageInfo(startPage, endPage)
+{
+	var result = "";
+	
+	if (startPage != "")
+	{
+		result = startPage;
+	}
+	
+	if (endPage != "")
+	{
+		result = result + "-" + endPage;
+	}
+	
+	return result;
+}
+*/
+
+/*
+function mandatoryFieldsFilled(wiki_container, highlightEmpty)
+{
+	var citation_form = getCitationForm(wiki_container)
+	var allMandatoryFieldsFilled = true;
+	
+	citation_form.find(".citation_mandatory").each(function(e)
+	{
+		if ($(this).val() == "")
+		{
+			allMandatoryFieldsFilled = false;
+			
+			if (highlightEmpty)
+			{
+				$(this).parents("td").prev().find("label").css("color", "red");
+			}
+		}
+	});
+	
+	return allMandatoryFieldsFilled;
+}
+*/
+
+
+/**
+ * Function for constructing JSON array with specified itemName id from
+ * defined citation type and citation form
+ *
+ * @param itemName id of the created JSON citation item
+ * @param citationType string defining the citation type (article-journal/book/chapter/paper-conference)
+ */
+
+/*
+function constructCitationJson(itemName, citationType, citationForm)
+{
+	var citation = {};
+	var values   = {};
+	
+	values["id"] = itemName;
+	values["type"] = citationType;
+	
+	if (citationForm.parents(".wikitype").find(".wikicitdoi").val() != "")
+	{
+		values["DOI"] = citationForm.parents(".wikitype").find(".wikicitdoi").val();
+	}
+	
+	if (citationForm.find(".citation_authors").length && citationForm.find(".citation_authors").val() != "")
+	{
+		values["author"] = parsePersonsInfo(citationForm.find(".citation_authors").val());
+	}
+	
+	if (citationForm.find(".citation_containertitle").length && citationForm.find(".citation_containertitle").val() != "")
+	{
+		values["container-title"] = citationForm.find(".citation_containertitle").val();
+	}
+	
+	if (citationForm.find(".citation_title").length && citationForm.find(".citation_title").val() != "")
+	{
+		values["title"] = citationForm.find(".citation_title").val();
+	}
+	
+	if (citationForm.find(".citation_volume").length && citationForm.find(".citation_volume").val() != "")
+	{
+		values["volume"] = citationForm.find(".citation_volume").val();
+	}
+	
+	if (citationForm.find(".citation_issue").length && citationForm.find(".citation_issue").val() != "")
+	{
+		values["issue"] = citationForm.find(".citation_issue").val();
+	}
+	
+	if ((citationForm.find(".citation_firstpage").length && citationForm.find(".citation_firstpage").val()) != "" || (citationForm.find(".citation_lastpage").length && citationForm.find(".citation_lastpage").val()))
+	{
+		var pages = parsePageInfo(citationForm.find(".citation_firstpage").val(), citationForm.find(".citation_lastpage").val());
+		
+		if (citationType == "book")
+		{
+			values["pages"] = pages;
+		}
+		else
+		{
+			values["page"] = pages;
+		}		
+	}
+	
+	if (citationForm.find(".citation_publicationyear").length && citationForm.find(".citation_publicationyear").val() != "")
+	{
+		values["issued"] = {"date-parts": [[ citationForm.find(".citation_publicationyear").val() ]]};
+	}
+	
+	if (citationForm.find(".citation_publisher").length && citationForm.find(".citation_publisher").val() != "")
+	{
+		values["publisher"] = citationForm.find(".citation_publisher").val();
+	}
+	
+	if (citationForm.find(".citation_editors").length && citationForm.find(".citation_editors").val() != "")
+	{
+		values["editor"] = parsePersonsInfo(citationForm.find(".citation_editors").val()); //wikiContainer.find(".wikicit_journalarticle_title").val();
+	}
+	
+	if (citationForm.find(".citation_edition").length && citationForm.find(".citation_edition").val() != "")
+	{
+		values["edition"] = citationForm.find(".citation_edition").val();
+	}
+	
+	if (citationForm.find(".citation_numberofpages").length && citationForm.find(".citation_numberofpages").val() != "")
+	{
+		values["page"] = citationForm.find(".citation_numberofpages").val();
+	}
+	
+	if (citationForm.find(".citation_url").length && citationForm.find(".citation_url").val() != "")
+	{
+		values["URL"] = citationForm.find(".citation_url").val();
+	}
+
+	citation[itemName] = values;
+	return citation;
+}
+*/
+
+/**
+ * Function for updating citation preview
+ *
+ * @param citationType type string of the current citation (article-journal/book/chapter/paper-conference/other)
+ * @param citationForm form that is used to fetch values into the citation preview
+ */
+
+/*
+function updateCitationPreview(citationType, citationForm)
+{
+	//alert(citationType);
+	var wikiCitation = citationForm.parents(".wikicit");
+	var citationJson = constructCitationJson("Item-1", citationType, citationForm)
+	renderCitation(wikiCitation.find(".wikicitprev"), citationJson, false);
+}
+*/
+
+/**
+ * Function for getting the currently selected citation form (based on the select field value)
+ *
+ * @param wikiContainer the div container containing the whole wiki comment elements
+ */
+
+/*
+function getCitationForm(wikiContainer)
+{
+	var citationType = wikiContainer.find(".citation-type").val();
+	var citationForm = null;
+
+	if (citationType == "article-journal")
+	{
+		citationForm = wikiContainer.find(".wikicittyp_journalarticle");
+	}
+	else if (citationType == "book")
+	{
+		citationForm = wikiContainer.find(".wikicittyp_book");
+	}
+	else if (citationType == "chapter")
+	{
+		citationForm = wikiContainer.find(".wikicittyp_bookchapter");
+	}
+	else if (citationType == "paper-conference")
+	{
+		citationForm = wikiContainer.find(".wikicittyp_conferencepaper");
+	}
+	else if (citationType == "other")
+	{
+		citationForm = wikiContainer.find(".wikicittyp_other");
+	}
+	
+	return citationForm;
+}
+*/
+
+/*
+function updateAddCitationButton(wiki_container)
+{
+	if (!mandatoryFieldsFilled(wiki_container, false))
+	{
+		if (!(wiki_container.find(".wikicitadd").parent().hasClass("disabled")))
+		{
+			wiki_container.find(".wikicitadd").parent().addClass("disabled");
+		}
+	}
+	else
+	{
+		wiki_container.find(".wikicitadd").parent().removeClass('disabled');
+	}
+}
+*/
+
+
+$(document).ready(function()
+{
+	// Function to slide all menu extensions up (About menu, Equation menu, Symbols menu, etc.
+	function toggleMenu (wikitypeChildElement, toggleclass)
+	{
+		wikitypeChildElement.parents(".wikitype").find('.wikimenuext').not(toggleclass).slideUp(300);
+		wikitypeChildElement.parents(".wikitype").find(toggleclass).slideToggle(300);
+	}
+	
+	// Function to get the wiki field (textarea) for specific wikitype instance
+	function wikiField(wikitype_child_element)
+	{
+		return wikitype_child_element.parents(".wikitype").find(".wiki_comment_textarea")[0];
+	}
+	
+	// About
+	$('.wikibtnabout').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '.wikiabout');
+	});
+
+	// Heading H1
+	$('.wikibtnheading').click(function(e)
+	{
+		e.preventDefault();
+		wiki_command(wikiField($(this)), '== ', ' ==', 3, 'Heading');
+	});
+	
+	// Subheading H2
+	$('.wikibtnsubheading').click(function(e) {
+		e.preventDefault();
+		wiki_command(wikiField($(this)), '=== ', ' ===', 4, 'Subheading');
+	});
+	
+	// Italic
+	$('.wikibtnitalic').click(function(e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		var space = '';
+		if( !wiki_has_selection(wikiField($(this))) ) {
+			space = ' ';
+		}
+		wiki_command(wikiField($(this)), '\'\'', '\'\'' + space, 2, 'text');
+	});
+
+	// Bold
+	$('.wikibtnbold').click(function(e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		var space = '';
+		if( !wiki_has_selection(wikiField($(this))) ) {
+			space = ' ';
+		}
+		wiki_command(wikiField($(this)), '\'\'\'', '\'\'\'' + space, 3, 'text');
+	});
+	
+	// Underline
+	$('.wikibtnunder').click(function(e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		var space = '';
+		if( !wiki_has_selection(wikiField($(this))) ) {
+			space = ' ';
+		}
+		wiki_command(wikiField($(this)), '__', '__' + space, 2, 'text');
+	});
+
+	// Strike-through
+	$('.wikibtnstrike').click(function(e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+
+		var space = '';
+		if( !wiki_has_selection(wikiField($(this))) ) {
+			space = ' ';
+		}
+		wiki_command(wikiField($(this)), '--', '--' + space, 2, 'text');
+	});
+
+	// Ordered list
+	$('.wikibtnolist').click(function(e) {
+		e.preventDefault();
+		wiki_command(wikiField($(this)), '# ', '', 2, 'text');
+	});
+	
+	// Unordered list
+	$('.wikibtnulist').click(function(e) {
+		e.preventDefault();
+		wiki_command(wikiField($(this)), '* ', '', 2, 'text');
+	});
+
+	// Symbols
+	$('.wikibtnsymb').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '.wikisymb');
+	});
+	
+	// Copy symbol to the wiki editor
+	$('.wikisymbol').click(function(e) {
+		e.preventDefault();
+		
+		text = $(this).text();
+		wiki_command(wikiField($(this)), text, '', text.length, '');
+	});			
+	
+	// Equation
+	$('.wikibtnequ').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '.wikiequ');
+	});
+	
+	// Equation LaTeX example
+	$('.wikiequlatex').click( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		var math = wiki_container.find(".wikiequpreview");
+		
+		wiki_container.find('.wikiequtype').val('\\[\n x = \\frac {-b \\pm \\sqrt {b^2 - 4ac}}{2a} \n\\]');
+		math.html(wiki_container.find('.wikiequtype').val());
+		MathJax.Hub.Queue(["Typeset", MathJax.Hub, math[0]]);
+	});
+	
+	// Equation MathML example
+	$('.wikiequmathml').click( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		var math = wiki_container.find(".wikiequpreview");
+		
+		wiki_container.find('.wikiequtype').val('<math display="block"><mrow><mi>x</mi><mo>=</mo><mfrac><mrow><mo>−</mo><mi>b</mi><mo>±</mo><msqrt><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></mrow></math>');
+		math.html(wiki_container.find('.wikiequtype').val());
+		MathJax.Hub.Queue(["Typeset", MathJax.Hub, math[0]]);
+	});
+	
+	// Equation copy to wiki editor
+	$('.wikiequcopy').click( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		value = wiki_container.find('.wikiequtype').val().trim();
+		if(value) {
+			value = '\n\n' + value + '\n\n';
+			wiki_command(wikiField($(this)), value , '', value.length, '');
+		}
+	});
+
+	// Equation live preview update
+	$('.wikiequtype').keyup( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		var math = wiki_container.find(".wikiequpreview")[0];
+		math.innerHTML = wiki_container.find(".wikiequtype")[0].value;
+		MathJax.Hub.Queue(["Typeset", MathJax.Hub, math]);
+	});
+
+	// Horizontal line
+	$('.wikibtnhline').click(function(e) {
+		e.preventDefault();
+		wiki_command(wikiField($(this)), '\n\n----\n\n', '', 0, '')
+	});	
+
+	// Link
+	$('.wikibtnlink').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '.wikilink');
+	});	
+	
+	// Image
+	$('.wikibtnimg').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '.wikiimg');
+	});	
+	
+	// Image copy to wiki editor - Wikify format for images is [[img:url]]
+	$('.wikiimgcopy').click( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		wiki_container.find('.wikiimgerror').hide();
+		wiki_container.find('.wikiimghref').css({'borderColor':''});
+		
+		href = wiki_container.find('.wikiimghref').val().trim();
+		if(isUrl(href)) {
+			href = '[[img:' + href + ']]';
+			wiki_command(wikiField($(this)), href , '', href.length, '');
+		} else {
+			wiki_container.find('.wikiimgerror').show();
+			wiki_container.find('.wikiimghref').css({
+				'borderColor' : '#ff0000',
+			});
+		}
+	});
+	
+	// Img copy to wiki editor - Wikify format for link is [url|linktext] 
+	$('.wikilinkcopy').click( function (e) {
+		e.preventDefault();
+		var wiki_container = $(this).parents(".wikitype");
+		
+		wiki_container.find('.wikilinkerror').hide();
+		wiki_container.find('.wikilinkhref').css({'borderColor':''});
+		
+		href     = wiki_container.find('.wikilinkhref').val().trim();
+		linktext = wiki_container.find('.wikilinkdescr').val().trim();
+		
+		if(isUrl(href)) {
+			if(linktext) {
+				href = href + '|' + linktext;
+			}
+			href = '[' + href + ']';
+			wiki_command(wikiField($(this)), href , '', href.length, '');
+		} else {
+			wiki_container.find('.wikilinkerror').show();
+			wiki_container.find('.wikilinkhref').css({
+				'borderColor' : '#ff0000',
+			});
+		}
+	});
+	
+	$('.wikibtncit').click(function(e)
+	{
+		e.preventDefault();
+		toggleMenu($(this), '.wikicit');
+		
+		//$(this).parents(".wikitype").find(".citation-type").change();
+		return false;
+	});
+	
+	$('.wikicit_existing_citations_search').on("keyup", function(e)
+	{
+		var wiki_container = $(this).parents(".wikitype");
+		var wiki_citations = wiki_container.find(".wikicit_existing_citations");
+		var search_string  = $(this).val();
+		
+		// go through all of the existing citations rows and search for the search text
+		wiki_citations.find("tr").each(function()
+		{
+			// remove all existing highlights...
+			//$(this).find(".citation_search_highlight").replaceWith($(this).find(".citation_search_highlight").html());
+			var citation_plain_array = $(this).find(".wikicit_add_existing_citation").html().split(/<[^>]+>/g);
+			var citation_plan        = citation_plain_array.join("");
+			
+			// no search word - show
+			if (search_string == "")
+			{
+				$(this).show();
+			}
+			// citation doesn't contain the search word - hide
+			else if (citation_plan.indexOf(search_string) == -1)
+			{
+				$(this).hide();
+			}
+			// citation contains the search word - highlight and show
+			else
+			{
+				/*
+				var innerHtml    = $(this).find(".wikicit_add_existing_citation").html();
+				var contentArray = innerHtml.split(search_string);
+				innerHtml = contentArray.join("<span class='citation_search_highlight' style='color: red;'>" + search_string + "</span>");
+				
+				$(this).find(".wikicit_add_existing_citation").html(innerHtml);
+				*/
+				$(this).show();
+			}
+		});
+		
+		return false;
+	});
+	
+	/*
+	$('.citation-type').change(function(e)
+	{
+		var wiki_container = $(this).parents(".wikitype");
+		var citation_type  = wiki_container.find(".citation-type").val();
+		var citation_form  = getCitationForm(wiki_container);
+		
+		// if the type is other - hide the doi
+		if (citation_type == "other")
+		{
+			wiki_container.find(".citation_doi").hide();
+		}
+		else
+		{
+			wiki_container.find(".citation_doi").show();
+		}
+		
+		//$(this).parents("td").prev().find("label").css("color", "red");
+		
+		//wiki_container.find(".wikicitadd").parent().addClass("disabled");
+		// disable/enable the add button based on whether the mandatory fields are filled
+		updateAddCitationButton(wiki_container);
+		
+		// change all the label colorings back to black
+		//wiki_container.find("label").css("color", "black");
+		
+		// update the citation preview based on the current form data 
+		updateCitationPreview(citation_type, citation_form);
+		
+		//var wiki_container = $(this).parents(".wikitype");
+		wiki_container.find('.citation-type-form').hide();
+		citation_form.show();
+	});
+	*/
+	
+	/*
+	$(".button.disabled").on(
+	{
+		mouseenter: function ()
+		{
+			var wiki_container = $(this).parents(".wikitype");
+			mandatoryFieldsFilled(wiki_container, true);
+		},
+		mouseleave: function ()
+		{
+			var wiki_container = $(this).parents(".wikitype");
+			wiki_container.find("label").css("color", "black");
+		}
+	});
+	*/
+	
+	/*
+	$('.citation-type-form input,.wikicitdoi').keyup(function(e)
+	{
+		var wiki_container = $(this).parents(".wikitype");
+		var citation_type  = wiki_container.find(".citation-type").val();
+		var citation_form  = getCitationForm(wiki_container);
+		
+		updateCitationPreview(citation_type, citation_form);
+		updateAddCitationButton(wiki_container);
+	});
+	*/
+		
+	// TODO: NEEDS TO BE REWRITTEN - WE CAN STILL SHOW THE USED CITATION AFTER THE COMMENT, BUT
+	//       THE CITATION NUMBERS NEED TO BE THE SAME AS IN THE DISCUSSION GROUP CITATIONS...
+	
+	// TODO: THIS IS NOT ACTUALLY USED AT ALL NOW ???..
+	$('.wikicit_add_existing_citation').on("click", function(e)
+	{
+		e.preventDefault();
+		
+		var wikiContainer     = $(this).parents(".wikitype");
+		var jsonCitations     = wikiContainer.find(".wiki_citations_json");
+		var citation_contents = JSON.parse($(this).parents("td").find("input").val());
+		
+		
+		var item_index    = 0;
+		//var item_name     = "";
+		
+		/*
+		var existingJson  = null;
+		
+		if (jsonCitations.val() != "")
+		{
+			//alert(jsonCitations.val());
+			existingJson = JSON.parse(jsonCitations.val());
+			var largestIndex = 0;
+			
+			// get the largest existing index so that the new citation will have bigger index number (and will be placed as the last element)
+			for (index = 0; index < Object.keys(existingJson).length; index++)
+			{
+				if (parseInt(Object.keys(existingJson)[index]) > largestIndex )
+				{
+					largestIndex = parseInt(Object.keys(existingJson)[index]);
+				}
+			}
+			
+			item_index = largestIndex + 1;
+		}
+		else
+		{
+			item_index = 1;
+		}
+		*/
+		
+		//var item_name = pad(item_index, 5);
+		
+		// create new complete citation JSON object with the constructed item name
+		//citation_contents.id = item_name;		
+		//var citationJson = {};
+		//citationJson[item_name] = citation_contents;
+		
+		var citationJson = {};
+		citationJson[citation_contents.id] = citation_contents;
+		
+		/////
+		var temp_id = citation_contents.id;
+		
+		// If there already exists some citations for the comment - add the new citation into the existing list
+		if (jsonCitations.val() != "" && jsonCitations.val() != "[]")
+		{
+			existingJson[citation_contents.id] = citationJson[citation_contents.id]
+		}
+		// No citations in the list, just set the new citation as existing json
+		else
+		{
+			existingJson = citationJson;
+		}
+		
+		wikiContainer.find(".wiki_citations_json").val(JSON.stringify(existingJson));
+		renderCitation(wikiContainer.find(".citations_div"), existingJson, true)
+		
+		/*
+		if (JSON.stringify(existingJson).length > 0)
+		{
+			wikiContainer.find(".citations_div").show();
+		}
+		*/
+		
+		// add the actual citation wiki string to the comment input
+		wiki_cite(wikiField($(this)), citation_contents.id);
+		
+		return false;
+	});
+	
+	/*
+	$('.wikicitadd').click(function(e)
+	{
+		e.preventDefault();
+		
+		// if the button is disabled - do no allow clicking
+		if ($(this).parents(".button").hasClass("disabled"))
+		{
+			return false;
+		}
+		
+		var wikiContainer = $(this).parents(".wikitype");
+		var jsonCitations = wikiContainer.find(".wiki_citations_json");
+		var citationType  = wikiContainer.find(".citation-type").val();
+		var item_index    = 0;
+		//var item_name     = "";
+		var existingJson  = null;
+		
+		if (jsonCitations.val() != "")
+		{
+			existingJson = JSON.parse(jsonCitations.val());
+			var largestIndex = 0;
+			
+			// get the largest existing index so that the new citation will have bigger index number (and will be placed as the last element)
+			for (index = 0; index < Object.keys(existingJson).length; index++)
+			{
+				if (parseInt(Object.keys(existingJson)[index]) > largestIndex )
+				{
+					largestIndex = parseInt(Object.keys(existingJson)[index]);
+				}
+			}
+			
+			item_index = largestIndex + 1;
+		}
+		else
+		{
+			//item_name = pad(1, 5);
+			item_index = 1;
+			//citationJson = journalArticleCitationAsJsonString(wikiContainer.find(".wikicittyp_journalarticle"), "Item-1");
+		}
+		
+		var item_name = pad(item_index, 5);
+		var citationForm = getCitationForm(wikiContainer);
+		var citationJson = constructCitationJson(item_name, citationType, citationForm)
+		
+		
+		
+		// check whether the citation DOI already exists in the group - confirm dialog if it does
+		var existing_citations = $(".group_citations_json").text();
+		existing_citations = JSON.parse(existing_citations);
+		
+		if (citationJson[item_name].hasOwnProperty('DOI'))
+		{
+			for (prop in existing_citations)
+			{
+				if (!existing_citations.hasOwnProperty(prop))
+				{
+					continue;
+				}
+				
+				if (existing_citations[prop]["DOI"] == citationJson[item_name]["DOI"])
+				{
+					if (!confirm('Are you sure that you want to add this citation as a new citation? A citation with the DOI: "' + existing_citations[prop]["DOI"] + '" already exists in this Discussion Group. In order to avoid duplicate references, please select the citation from the existing citations.'))
+					{
+						return false;
+					}
+					break;
+				}
+			}
+		}
+		
+		// If there already exists some citations for the comment - add the new citation into the existing list
+		if (jsonCitations.val() != "" && jsonCitations.val() != "[]")
+		{
+			// check whether the citation DOI already exists in the post - confirm dialog if it does
+			if (citationJson[item_name].hasOwnProperty('DOI'))
+			{
+				for (prop in existingJson)
+				{
+					if (!existingJson.hasOwnProperty(prop))
+					{
+						continue;
+					}
+					
+					if (existingJson[prop]["DOI"] == citationJson[item_name]["DOI"])
+					{
+						if (!confirm('Are you sure that you want to add this citation as a new citation? Your comment already contains a citation with the DOI: "' + existingJson[prop]["DOI"] + '"'))
+						{
+							return false;
+						}
+						break;
+					}
+				}
+			}
+			
+			existingJson[item_name] = citationJson[item_name];
+		}
+		// No citations in the list, just set the new citation as existing json
+		else
+		{
+			existingJson = citationJson;
+		}
+		
+		wikiContainer.find(".wiki_citations_json").val(JSON.stringify(existingJson));
+		renderCitation(wikiContainer.find(".citations_div"), existingJson, true)
+		
+		if (JSON.stringify(existingJson).length > 0)
+		{
+			wikiContainer.find(".citations_div").show();
+		}
+		
+		// add the actual citation wiki string to the comment input
+		wiki_cite(wikiField($(this)), item_index);
+		
+		// clear the form
+		wikiContainer.find(".citation-type-form input, .wikicitdoi").val("");
+		wikiContainer.find(".wikicitadd").parent().addClass("disabled");
+		updateCitationPreview(citationType, citationForm);
+		
+		return;
+	});
+	*/
+	
+	/*
+	$('.citation_btn_use').on("click", function()
+	{
+		var citation_index = $(this).parents("td").find(".citation_index").val();
+		wiki_cite(wikiField($(this)), parseInt(citation_index));
+	});
+	*/
+	
+	/*
+	$('.citation_btn_remove').on("click", function()
+	{
+		// just the simple case implemented - removing newly added citation...
+		var wikiContainer  = $(this).parents(".wikitype");
+		var citation_index = $(this).parents("td").find(".citation_index").val();
+		var jsonCitations  = wikiContainer.find(".wiki_citations_json");
+		
+		if (jsonCitations.val() != "")
+		{
+			var item_name      = pad(citation_index, 5);
+			var existingJson   = JSON.parse(jsonCitations.val());
+			delete existingJson[item_name];
+			//existingJson.splice(citation_index, 1);
+			
+			//alert(item_name + " - " + JSON.stringify(existingJson));
+		}
+		
+		wikiContainer.find(".wiki_citations_json").val(JSON.stringify(existingJson));
+		renderCitation(wikiContainer.find(".citations_div"), existingJson, true)
+		
+		// hide the citations div if there are  not more citations (string length 2 means empty '{}')
+		if (JSON.stringify(existingJson).length == 2)
+		{
+			wikiContainer.find(".citations_div").hide();
+		}
+	});
+	*/
+	
+	/*
+	$('.citation_btn_edit').on("click", function()
+	{
+		alert("not implemented yet!");
+	});
+	*/
+	
+	// Menu extension close button
+	$('.wikimenuextclose').click(function(e) {
+		e.preventDefault();
+		toggleMenu($(this), '');
+	});
+});

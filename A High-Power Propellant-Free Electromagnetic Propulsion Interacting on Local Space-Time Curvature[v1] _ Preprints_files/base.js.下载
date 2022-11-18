@@ -1,0 +1,1783 @@
+function supportBrowserCopy()
+{
+    return ($.browser.webkit && $.browser.versionNumber >= 43) || ($.browser.mozilla && $.browser.versionNumber >= 41);
+}
+
+function processEmail(element)
+{
+    var input = $(element);
+    var val = input.val();
+    var reg = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{1,}))$/;
+    var htmlArr = [];
+    var emails = val.split(',')
+    for (var i = emails.length - 1; i >= 0; i--) {
+        val = $.trim(emails[i]);
+        if(reg.test(val)){
+            var tagHtml = '<div class="item"><span class="email-tag">' + val + '</span><a class="remove-email"><i class="fa fa-times remove-email"></i></a>';
+            $(tagHtml).insertBefore(input.parent('.input-wrap'));
+            input.val('');
+        }
+    }
+}
+
+function mainSearch(menuSearchElement)
+{
+    var elm = $("#menu-search");
+    var url = elm.data('search-url');
+
+    if (elm.val() != '') {
+        url += "&search=" + elm.val();
+    }
+    else {
+        url += "&search=*";
+    }
+
+    window.location.href = url;
+}
+
+function show_hide_abstract(obj, hash_key)
+{
+    if ($('#abstract_content_'+hash_key).css('display') == 'none') {
+        $('#abstract_content_'+hash_key).show();
+        $(obj).text('Hide abstract')
+    } else {
+        $('#abstract_content_'+hash_key).hide();
+        $(obj).text('Show abstract')
+    }
+}
+
+function getQueryString(name) {
+    var reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)', 'i');
+    var r = window.location.search.substr(1).match(reg);
+    if (r != null) {
+        return unescape(r[2]);
+    }
+    return null;
+}
+(function(){
+    var globalLayuiLoading
+    $.ajaxSetup({
+        beforeSend(a, b) {
+            if (location.pathname === '/') {
+                return
+            }
+            if (b.url.indexOf('http') === -1 || new URL(b.url).host === location.host) {
+                globalLayuiLoading = layer.load(2, {
+                    offset: '22%'
+                })
+                setTimeout(function () {
+                    layer.close(globalLayuiLoading)
+                }, 5000)
+            }
+        },
+        complete() {
+            layer.close(globalLayuiLoading)
+        }
+    })
+    const LAYER_SUCCESS = 1;
+    const LAYER_ERROR = 2;
+    const LAYER_INFO = 7;
+    window.toast = {
+        show(type, msg, callback) {
+            let time = 5000
+            if (callback) {
+                time = 1000
+            }
+            let anim = type === LAYER_ERROR ? 6 : 0
+            window.layer.msg(msg, {
+                closeBtn: 1,
+                icon: type,
+                time: time,
+                anim: anim,
+                offset: '20%',
+            }, function () {
+                if (callback) {
+                    callback()
+                }
+            });
+        },
+        success(msg, callback) {
+            this.show(LAYER_SUCCESS, msg, callback)
+        },
+        error(msg, callback) {
+            this.show(LAYER_ERROR, msg, callback)
+        },
+        info(msg, callback) {
+            this.show(LAYER_INFO, msg, callback)
+        },
+        flash() {
+            $('[data-layer="msg"]').each((k, target) => {
+                this.show($(target).data('icon'), $(target).html())
+            });
+        }
+    }
+    toast.flash()
+    $("#submission_accordion").on('click', '.my-accordion-navigation h5 a', function(e){
+        var currect_step = $("#submission_step").data('step');
+        var to_step = $(this).data('to-step');
+        if (currect_step == 5 || !to_step) {
+            return;
+        }
+        e.preventDefault();
+        var form = $("#submission_form");
+        form.attr('action', form.attr('action') + "?" + $.param({to_step : to_step}));
+        form[0].submit();
+    });
+
+    function setAuthorNum() {
+        $(".author-num").each(function(index, ele){
+            $(ele).html("Author " + (index + 1));
+        });
+    }
+    setAuthorNum();
+    if ($('.author-collection').length > 0) {
+        $('.author-collection').collection({
+            name_prefix: 'submission_new_step1[authors]',
+            min: 1,
+            add_at_the_end: true,
+            add: '<button class="btn" type="button">+ Add Author</button>',
+            drag_drop: true,
+            after_add: function (collection, element) {
+                setAuthorNum();
+                return true;
+            },
+            after_up: function (collection, element) {
+                setAuthorNum();
+                return true;
+            },
+            after_down: function (collection, element) {
+                setAuthorNum();
+                return true;
+            },
+            after_remove: function (collection, element) {
+                setAuthorNum();
+                return true;
+            }
+        });
+    }
+    function handleRemoveBtn() {
+        if ($(".remove-author-btn").length <= 1) {
+            $(".remove-author-btn").hide();
+        } else {
+            $(".remove-author-btn").show();
+        }
+        $(".submission-author-form").each(function(k,v){
+            var down_author_rank_btn = $(v).find(".down_author_rank_btn");
+            var up_author_rank_btn = $(v).find(".up_author_rank_btn");
+            down_author_rank_btn.show();
+            up_author_rank_btn.show();
+            if (k == 0) {
+                up_author_rank_btn.hide();
+            }
+            if (k+1 == $(".submission-author-form").length) {
+                down_author_rank_btn.hide();
+            }
+        });
+
+        setAuthorNum();
+    }
+    handleRemoveBtn();
+    $("#submission_author_section").on('click', '.remove-author-btn', function () {
+        $(this).parents(".submission-author-form").remove();
+        handleRemoveBtn();
+    });
+
+    $("#add-author-btn").on('click', function() {
+        var prototype = $("#submissionAuthors").data('prototype'),
+            forms = $("#submission_author_section .submission-author-form"),
+            newForm, indexArray = [];
+        for (var i = forms.length - 1; i >= 0; i--) {
+            indexArray.push(forms.eq(i).find('input').attr("name").match(/\[(\d+)\]/)[1]);
+        };
+        newForm = prototype.replace(/__name__/g, Math.max.apply({}, indexArray) + 1);
+        $("#submission_author_section").append(newForm);
+        handleRemoveBtn();
+    });
+
+    $("#submission_form").on("click", ".up_author_rank_btn, .down_author_rank_btn", function(e) {
+        e.preventDefault();
+        var current_link = $(this);
+        var current_form = current_link.parents('.submission-author-form');
+        if (current_link.hasClass('up_author_rank_btn')) {
+            var prev_form = current_form.prev('.submission-author-form');
+            if (prev_form.length >= 0) {
+                current_form.insertBefore(prev_form);
+            }
+        } else if (current_link.hasClass('down_author_rank_btn')) {
+            var next_form = current_form.next('.submission-author-form');
+            if (next_form.length >= 0) {
+                current_form.insertAfter(next_form);
+            }
+        }
+        handleRemoveBtn();
+    });
+
+    var topSubject = $("#sciprintsbundle_update_submission_topSubject, #submission_form_topSubject");
+    var subject = $("#sciprintsbundle_update_submission_subject, #submission_form_subject");
+    topSubject.on('change', function(){
+        var select = $(this);
+        var options = "<option value>Select</option>"
+        if (select.val()) {
+            $.get(
+                select.data('url'),
+                {id: select.val()}
+            ).done(function(subjects){
+                options += $.map(subjects, function(s){
+                    var selected = subject.data('select-id') == s.id ? ' selected="selected" ' : '';
+                    return ["<option value='", s.id, "'", selected,">", s.text, "</option>"].join("");
+                });
+                subject.html(options);
+            });
+        } else {
+            subject.html(options);
+        }
+    });
+    topSubject.val(topSubject.data('select-id')).trigger('change');
+    var selectedOption = subject.val();
+    if (selectedOption) {
+        subject.children('option').each(function(index, ele){
+            if (!ele.value) {
+                $(ele).remove();
+                return false;
+            }
+        });
+    }
+
+    // handle the copy-to-clipboard buttons
+    $('.copy-container .copy-button').each(function(e)
+    {
+        if (supportBrowserCopy())
+        {
+            $(this).show();
+            $(this).on( "click", function()
+            {
+                var copyText = $(this).closest(".copy-container").find('.copy-text');
+                var range = document.createRange();
+
+                if (copyText.length == 1)
+                {
+                    range.selectNode(copyText[0]);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+
+                    try
+                    {
+                        // Now that we've selected the anchor text, execute the copy command
+                        var successful = document.execCommand('copy');
+                        var msg = successful ? 'copy successful' : 'copy unsuccessful';
+                        toast.success(msg)
+                    }
+                    catch(err)
+                    {
+                        console.log('Oops, unable to copy');
+                    }
+
+                    // Remove the selections - NOTE: Should use
+                    // removeRange(range) when it is supported
+                    window.getSelection().removeAllRanges();
+                }
+
+            });
+        }
+    });
+
+    $(".submission-list-table").on("click", '.detail-link', function(e) {
+        e.preventDefault();
+        $(this).parents("td").find(".manuscript-detail").slideToggle('slow');
+    });
+    $(".submission-list-table").on("click", '.file-download-link', function(e) {
+        e.preventDefault();
+        var $dialog = $("#file-download-dialog");
+        $dialog.empty();
+        $dialog.load($(this).data('url'));
+        $dialog.dialog({
+            width: 600,
+            height: 400,
+            modal: true
+        });
+    });
+    $(".submission-list-table").on("click", '.apply-doi-link', function(e) {
+        e.preventDefault();
+        $("#common-dialog").empty().attr('title', 'Apply DOI').load($(this).data('url')).dialog({
+            width: 500,
+            height: 300,
+            modal: true
+        });
+    });
+
+    $(".submission-list-table").on("click", '.open-dailog-link', function(e) {
+        e.preventDefault();
+        var $dialog = $("#common-editor-dialog");
+        $dialog.html('').load($(this).data('url'));
+        $dialog.dialog({
+            width: 1200,
+            height: 600,
+            modal: true,
+            title: $(this).attr('title')
+        });
+    });
+
+    $('#choose-topic').click(function (e) {
+        e.preventDefault();
+        var $dialog = $("#choose-topic-dialog");
+        $dialog.dialog({
+            width: 450,
+            height: 180,
+            modal: true,
+            title: 'Choose Topic',
+            buttons: {
+                OK: function () {
+                    var $select = $dialog.find('select')
+                    if ($select.get(0).checkValidity()) {
+                        var $a = $('#send-topic-email')
+                        $a.data('url', '/editor/email/send_to_topic_editor/' + $a.data('hash-key') + '/' + $select.val())
+                        $a.click();
+                        $dialog.dialog('close');
+                    } else {
+                        $select.get(0).reportValidity()
+                    }
+                }
+            }
+        });
+    });
+
+    // ------- user submission list start -------
+    $('.submission-list-table').on('click', 'a.view-requirements', function(e){
+        e.preventDefault();
+        $(this).parents('td').find('.email-log-detail').show().load($(this).data('url'));
+    });
+
+    $('.submission-list-table').on('click', 'a.request-withdraw', function(e){
+        e.preventDefault();
+        var withdrawBtn = $(this);
+        if (withdrawBtn.hasClass('disabled')) {
+            return;
+        }
+        var withdrawComment = withdrawBtn.parents('td').find('.withdraw-comment')
+        $("a.request-withdraw").removeClass("disabled");
+        $('.withdraw-comment').hide().empty();
+        withdrawBtn.addClass('disabled');
+        withdrawComment.show().load(withdrawBtn.attr('href'));
+    });
+
+    $('.submission-list-table').on('click', '.withdraw-cancel-button', function(e){
+        e.preventDefault();
+        $("a.request-withdraw").removeClass("disabled");
+        $(this).parents('.withdraw-comment').hide().empty();
+    });
+
+    $(".submission-list-table").on('click', '.pending_resubmission', function(e){
+        e.preventDefault();
+        var resubmit_url = $(this).data('resubmit-url');
+        var pre_resubmit_url = $(this).data('preresubmit-url');
+        $.ajax({
+            type: "POST",
+            context: this,
+            dataType: 'json',
+            url: pre_resubmit_url,
+            success: function(data) {
+                location.href = resubmit_url;
+            },
+            error: function(data, textStatus, jqXHR) {
+                alert(data.responseJSON.message);
+                location.reload();
+            }
+        });
+    });
+    // ------- user submission list end -------
+
+    function loadEmailContent(emailBtn, emailForm) {
+        emailForm.show().load(emailBtn.data('url'), function(){
+            scollToActions()
+            emailBtn.addClass('disabled').addClass('user-active-button');
+            if ($(".add-email-attach").size()) {
+                initUploadTool($(".add-email-attach"));
+                loadAttachs(emailForm.find('.attach-list-section'));
+            } else if (emailBtn.hasClass('replace-pdf')) {
+                initEditorUploadTool($(".upload-pdf-file"), true);
+            } else {
+                initEditorUploadTool($(".upload-pdf-file"), false);
+            }
+        });
+    }
+    function scollToActions() {
+        location.href = '#actions'
+    }
+    $(".decision-section").on("click", '.send-email-only', function(e) {
+        e.preventDefault();
+        var emailBtn = $(this);
+        var emailForm = emailBtn.parents('.decision-section').find('.email-form-wrapper');
+        if (emailBtn.hasClass('disabled')) {
+            return;
+        }
+        $('.email-form-wrapper').empty();
+        $(".decision-section .send-email-only, .xml-check").removeClass("disabled").removeClass('user-active-button');
+        $(".decision-section .accept").removeClass("disabled").removeClass('user-active-button');
+        if ($(this).text() == 'Accept') {
+            var $dialog = $("#accept-remind");
+            $dialog.dialog({
+                title: "Reminder",
+                width: 600,
+                height: 350,
+                modal: true,
+                buttons: {
+                    OK: function () {
+                        $dialog.dialog('close');
+                        loadEmailContent(emailBtn, emailForm);
+                    }
+                }
+            });
+            return;
+        }
+        loadEmailContent(emailBtn, emailForm);
+    });
+
+    function loadAnnounceContent(upload, announceWrapper) {
+        announceWrapper.show().load(upload.data('announce-url'), function(){
+            var swiper = new Swiper('.swiper-container', {
+                pagination: '.swiper-pagination',
+                slidesPerView: 1,
+                paginationClickable: true,
+                spaceBetween: 30,
+                keyboardControl: true,
+                nextButton: '.swiper-button-next',
+                prevButton: '.swiper-button-prev',
+            });
+            upload.addClass('disabled').addClass('user-active-button');
+            $("#announce-download-final-file")[0].click();
+        });
+    }
+
+    $(".decision-section").on('click', '.accept-announce', function(e){
+        e.preventDefault();
+        var emailBtn = $(this);
+        var emailForm = emailBtn.parents('.decision-section').find('.email-form-wrapper');
+        if (!$('#manuscript_qualifies').is(":checked")) {
+            $('.error_block').remove();
+            $('#manuscript_qualifies').before("<div class='error_block error-message'>Please confirm manuscript qualifies Preprints layout requirements and can be announced online</div>");
+            return false;
+        }
+        $('.email-form-wrapper').empty();
+        $(".decision-section .send-email-only").removeClass("disabled");
+
+        loadEmailContent(emailBtn, emailForm);
+    });
+
+    $('.decision-section').on('click', '.email-cancel-button', function(e){
+        e.preventDefault();
+        $(this).parents('.email-form-wrapper').empty().hide();
+        $(".decision-section .send-email-only").removeClass("disabled").removeClass('user-active-button');
+    });
+
+    $('.decision-section').on('click', '.set-parent-btn', function(e){
+        e.preventDefault();
+        var btn = $(this).addClass('user-active-button');
+        var content = btn.parents('.decision-section').find('.set-parent-content');
+        content.show();
+    });
+
+    $('.decision-section').on('click', '.link-susy-id-btn', function(e){
+        e.preventDefault();
+        var btn = $(this).addClass('user-active-button');
+        var content = btn.parents('.decision-section').find('.link-susy-id-content');
+        content.show();
+    });
+
+    $('.decision-section').on('click', '.set-parent-submit', function(e){
+        var submit = $(this);
+        var content = submit.parents('.decision-section').find('.set-parent-content');
+        var id = content.find('input').val();
+        $.post(submit.data('url'), {preprint_id: id}, function(data){
+            if (data.success) {
+                location.reload();
+            } else {
+                content.find('input').prev().html(data.msg);
+                setTimeout(function () {
+                    content.find('input').prev().html('')
+                }, 2000)
+            }
+        });
+    });
+
+    $('.decision-section').on('click', '.link-susy-id-submit', function(e){
+        var submit = $(this);
+        var content = submit.parents('.decision-section').find('.link-susy-id-content');
+        content.find('input').keyup(function () {
+            content.find('input').prev().html('')
+        })
+        var id = content.find('input').val();
+        $.post(submit.data('url'), {susy_id: id}, function(data){
+            if (data.code == 0) {
+                toast.success('success', function () {
+                    location.reload()
+                })
+            } else {
+                content.find('input').prev().html(data.msg);
+            }
+        });
+    });
+
+    $('.link-susy-id-content').on('click', '.cancel-link-susy-id', function(e){
+        var cancel = $(this);
+        var content = cancel.parents('.decision-section')
+        content.find('.link-susy-id-content').hide();
+        content.find('.link-susy-id-btn').removeClass('user-active-button');
+    });
+
+    $('.set-parent-content').on('click', '.cancel-set-parent', function(e){
+        var cancel = $(this);
+        var content = cancel.parents('.decision-section')
+        content.find('.set-parent-content').hide();
+        content.find('.set-parent-btn').removeClass('user-active-button');
+    });
+
+    $('.decision-section').on('click', '.send-to-advisory-board', function(e){
+        e.preventDefault();
+        var btn = $(this).addClass('user-active-button');
+        var content = btn.parents('.decision-section').find('.advisory-board-content');
+        content.show();
+    });
+
+    $('.advisory-board-content').on('click', '.select-ab-btn', function(e){
+        if (!$('#select-advisory-board').val()) {
+            return;
+        }
+        var btn = $(this);
+        var content = btn.parents('.decision-section').find('.advisory-board-content');
+        var url = btn.data('url') + '?editor_id='+$('#select-advisory-board').val();
+        var emailForm = btn.parents('.decision-section').find('.email-form-wrapper');
+        emailForm.show().load(url, function (e) {
+        });
+    });
+
+    $('.advisory-board-content').on('click', '.cancel-ab-btn', function(e){
+        var btn = $(this);
+        var content = btn.parents('.decision-section').find('.advisory-board-content').hide();
+        btn.parents('.decision-section').find('.send-to-advisory-board').removeClass('user-active-button');
+        $('.invite-list-wrapper').hide()
+    });
+
+    $('.decision-section').on('click', '.send-for-internal-check', function(e){
+        e.preventDefault();
+        var btn = $(this).addClass('user-active-button');
+        var content = btn.parents('.decision-section').find('.expert-content');
+        content.show();
+    });
+
+    $('.expert-content').on('click', '.select-expert-btn', function(e){
+        var btn = $(this);
+        var content = btn.parents('.decision-section').find('.expert-content');
+        var url = btn.data('url') + '?user_id=' + $('#select-expert').val();
+        var emailForm = btn.parents('.decision-section').find('.email-form-wrapper');
+        emailForm.show().load(url, function (e) {
+        });
+    });
+
+    $('.expert-content').on('click', '.cancel-expert-btn', function(e){
+        var btn = $(this);
+        var content = btn.parents('.decision-section').find('.expert-content').hide();
+        btn.parents('.decision-section').find('.send-for-internal-check').removeClass('user-active-button');
+    });
+
+    $('.decision-section').on('submit', '.email-form-wrapper > form', function(e){
+        e.preventDefault();
+        $('#submit_next_btn').prop('disabled', true);
+        var form = $(this);
+        var form_wrap = $(this).parents(".email-form-wrapper");
+        var data = {};
+        var a = form.serializeArray();
+        $.each(a, function() {
+            data[this.name] = this.value || '';
+        });
+        var toEmailTags = [];
+        $("#sciprints_email_form_to").parents('.wrap').find('.email-tag').each(function(index, ele){
+            toEmailTags.push($.trim($(ele).html()));
+        })
+        var ccEmailTags = [];
+        $("#sciprints_email_form_cc").parents('.wrap').find('.email-tag').each(function(index, ele){
+            ccEmailTags.push($.trim($(ele).html()));
+        });
+
+        form_wrap.find(".wrap").removeClass('validate');
+        form_wrap.find("input, textarea").removeClass('validate');
+        if (toEmailTags.length == 0) {
+            $("#sciprints_email_form_to").parents(".wrap").addClass('validate');
+            return;
+        }
+
+        if (!$("#sciprints_email_form_subject").val()) {
+            $("#sciprints_email_form_subject").addClass('validate');
+            return;
+        }
+        if (!$("#sciprints_email_form_message").val()) {
+            $("#sciprints_email_form_message").addClass('validate');
+            return;
+        }
+        data["sciprints_email_form[to]"] = toEmailTags.join(',');
+        data["sciprints_email_form[cc]"] = ccEmailTags.join(',');
+
+        $.post(this.action, data).always(function(data){
+            $('#submit_next_btn').prop('disabled', false);
+            if (data.succ) {
+                form_wrap.hide().empty();
+                $(".decision-section .send-email-only").removeClass("disabled");
+                $(window).scrollTop(0);
+                $(".message-row").append($("<small class='alert-box success radius'>Email successfully sent.</small>"));
+                setTimeout(function(){
+                    location.reload();
+                }, 800);
+            } else {
+                if (data?.error) {
+                    form_wrap.find(".error-message").html('<p>'+data?.error+'</p>');
+                } else {
+                    form_wrap.find(".error-message").html('<p>Sorry, it seems something went wrong, send email failed!</p>');
+                }
+            }
+        });
+    });
+
+    $('.decision-section').on('keydown', '.email-form-wrapper .email-address', function(e){
+        var code = e.keyCode;
+        if (code == 13) {
+            processEmail(this);
+            return false;
+        }
+    });
+
+    $('.decision-section').on('blur', '.email-form-wrapper .email-address', function(e){
+        processEmail(this);
+        return false;
+    });
+
+    $('.decision-section').on('click', '.email-form-wrapper .wrap', function(e){
+        e.preventDefault();
+        var $target = $(e.target);
+        if ($target.is('input')) {
+        }
+        else if ($target.hasClass('remove-email')) {
+            $target.parents('div.item').remove();
+        } else if (!$target.hasClass('item') && !$target.parent().hasClass('item')) {
+            $(this).find('input').focus();
+        }
+    });
+
+    $('.decision-section').on('click', '.send-to-volunteer', function(e){
+        e.preventDefault();
+        var btn = $(this).addClass('user-active-button');
+        var content = btn.parents('.decision-section').find('.volunteer-content');
+        content.show();
+    });
+
+    function loadAttachs(listSection) {
+        listSection.load(
+            listSection.data('url'),
+            {action_uri: listSection.parents('form').attr('action')}
+        );
+    }
+
+    function initUploadTool(addbtn) {
+        new AjaxUpload(addbtn, {
+            action: addbtn.data('url'),
+            name: 'attachment',
+            data: {
+                action_uri: addbtn.parents('form').attr('action')
+            },
+            onSubmit: function(file, ext) {
+            },
+            onComplete: function(file, response) {
+                loadAttachs(addbtn.next('.attach-list-section'));
+            }
+        });
+    }
+
+    $(".decision-section").on('click', ".deleteAttachment", function(e){
+        e.preventDefault();
+        var deleteLink = $(this);
+        $.get(deleteLink.attr('href')).done(function(){
+            loadAttachs(deleteLink.parents('.attach-list-section'));
+        });
+    });
+    $(".decision-section").on('click', '#generate_id', function(){
+        var btn = $(this);
+        if (btn.hasClass('disabled')) {
+            return false;
+        }
+        if (confirm('Are you sure you want to generate ID?')) {
+            btn.html('Loading');
+            $.post($(this).data('url'), function(data){
+                if (data.id) {
+                    $("#id_display").html(data.id);
+                    btn.html('Generated').addClass('disabled');
+                    $('.upload-pdf-file-wrapper').removeClass('hide');
+                } else {
+                    var uploadWrapper = upload.parents(".upload-file-wrapper");
+                    uploadWrapper.find('.error-message').html("Sorry, it seems something went wrong!");
+                }
+            }).error(function(e) {
+                $("#id_display").html(e.responseJSON.msg);
+                btn.html('Error').addClass('disabled');
+            });
+        }
+    });
+    $(".manuscript-info").on('click', '.view-user-submisions', function(e){
+        var btn = $(this);
+        e.preventDefault();
+        var $dialog = $("#view-user-submissions");
+        $dialog.empty().load($(this).data('url'), function () {
+            $dialog.dialog({
+                width: 900,
+                height: 600,
+                modal: true
+            });
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+            const comparer = (idx, asc) => (a, b) => ((v1, v2) =>
+                    v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
+            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+            document.querySelectorAll('th').forEach(th => th.addEventListener('click', (() => {
+                const tbody = th.closest('table').children[1];
+                Array.from(tbody.querySelectorAll('tr:nth-child(n+1)'))
+                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc))
+                    .forEach(tr => tbody.appendChild(tr) );
+            })));
+        });
+        $("#view-user-submissions").on('change keyup', '#table-search-input', function () {
+            var val = $(this).val()
+            $('#user-submissions-table').children('tbody').children().each(function (_, tr) {
+                $(tr).hide()
+                $(tr).children().each(function (_, td) {
+                    if ($(td).text().toLowerCase().includes(val.toLowerCase())) {
+                        $(tr).show()
+                        return false;
+                    }
+                })
+            })
+        })
+    });
+
+    $('.decision-section').on('change', '.select-email-tempalte', function(e){
+        var option = $(this).find('option:selected');
+        var form = $(this).parents('form');
+        form.find('#sciprints_email_form_subject').val(option.data('subject'));
+        form.find('#sciprints_email_form_message').val(option.data('message'));
+    });
+
+    $('body').on('click', '#get_article_feed_btn', function(e){
+        var feed_url = $('#get_article_feed_btn').data('url');
+        var params = $("#form_feeds").serializeArray();
+        var feed = new Feed();
+        feed.createFeed({"url": feed_url,"data": params, "target": this});
+        return false;
+    })
+
+    $('body').on('change', '#subject_area', function(e){
+        var url = $('#subject_area').data('url');
+        var subject_id =  $(this).find(":selected").val();
+        $('[id=subject_area]').val(subject_id)
+        var feed = new Feed();
+        feed.createSubjectAreaList({"url" :url ,  "id" : subject_id, "field_id" : "subject_sub_area", "alert" : 1 });
+    });
+
+    $('body').on('click', '#subject_sub_area', function(e){
+        var subject_id =  $(this).find(":selected").val();
+         $('[id=subject_sub_area]').val(subject_id);
+    });
+
+    $('body').on('click', '#alert_frequency_0', function(e){
+        $('[id=alert_frequency_0]').each (function(){
+            $(this).prop('checked', 'checked');
+        });
+
+    });
+
+    $('body').on('click', '#alert_frequency_1', function(e){
+        $('[id=alert_frequency_1]').each (function(){
+            $(this).prop('checked', 'checked');
+        });
+    });
+
+    $('body').on('focus', '#email', function(e){
+        var email;
+
+        $('[id=email]').each (function(){
+            if ($(this).val() != '') {
+                email = $(this).val();
+            }
+        });
+        $('[id=email]').val(email);
+    });
+
+    $('body').on('click', '#update_alert', function(e){
+
+        var alert_id = $(this).data('id');
+         console.log($(this).data('type'))
+        if ($(this).data('type') == 'author') {
+            var fequency = $("[name='alert_author[frequency]["+alert_id+"]']:checked").val();
+        } else if ($(this).data('type') == 'keyword')  {
+            var fequency = $("[name='alert_keyword[frequency]["+alert_id+"]']:checked").val();
+        } else {
+
+            var fequency = $("[name='form_alert_subject[user_subject_frequency]["+alert_id+"]']:checked").val();
+
+        }
+
+        var url = $(this).data('url');
+        var feed = new Feed();
+        feed.updateAlert({"url" :url ,  "id" : alert_id, "alert_id" : alert_id, "frequency": fequency });
+    });
+
+    $('body').on('click', '#delete_alert', function(e){
+        if (confirm('Are you sure to delete this item?')) {
+            var alert_id = $(this).data('id');
+            var url = $(this).data("url")
+            var url_alert_page = $(this).data("url-reload");
+            var feed = new Feed();
+            feed.deleteAlert({"url" :url ,  "alert_id" : alert_id, 'alert_page':  url_alert_page});
+        }
+    });
+
+    $(".hidden-list-title").on("click", function(e){
+        e.preventDefault();
+        var $this = $(this);
+        if ($this.hasClass('close')) {
+            $this.html("-");
+            $this.parent().next().show();
+        } else {
+            $this.html("+");
+            $this.parent().next().hide();
+        }
+        $this.toggleClass("close");
+    });
+
+    function runFilter(arrayTopics, arraySubtopics, withoutSubtopicSelected) {
+        var topics = arrayTopics.toString(),
+            subtopics = arraySubtopics.toString(),
+            topicsWithoutSubtopicSelected = withoutSubtopicSelected.toString(),
+            urlString = "/advisory_board";
+        if (topics !== "") {
+            urlString += "?ids=" + topics;
+        }
+        if (subtopics !== "") {
+            if (topics !== "") {
+                urlString += "&";
+            } else {
+                urlString += "?";
+            }
+            urlString += "subIds=" + subtopics;
+        }
+        if (topicsWithoutSubtopicSelected !== "") {
+            if (topics !== "" || subtopics !== "") {
+                urlString += "&";
+            } else {
+                urlString += "?";
+            }
+            urlString += "allSub=" + topicsWithoutSubtopicSelected;
+        }
+        window.location = urlString;
+    }
+
+    function getDataAndRun(selector) {
+        var checked = $(".position-class .main-subject-row input:checkbox:checked");
+        var main = [];
+        var sub = [];
+        var allSub = [];
+        checked.each(function(index, ele){
+            main.push($(ele).val());
+            var subChecked = $(ele).parents(".main-subject-row").next(".sub-subject-wrapper").find('input:checkbox:checked');
+            if (subChecked.size()) {
+                subChecked.each(function(index, ch){
+                    sub.push($(ch).val());
+                });
+            } else {
+                allSub.push($(ele).val());
+            }
+        });
+        runFilter(main, sub, allSub);
+    }
+
+    $(".ad-filter-section").on("click", ".main-subject-row, .sub-subject-row", function(e){
+        var row = $(this);
+        var checkbox = row.find('input');
+        var target = $(e.target);
+        if (!target.is('input')) {
+            e.preventDefault();
+            if (checkbox.prop("checked")) {
+                checkbox.prop("checked", false).change();
+            } else {
+                checkbox.prop("checked", true).change();
+            }
+        }
+        if (row.hasClass("main-subject-row")) {
+            var sub = row.next(".sub-subject-wrapper");
+            sub.toggleClass("hide");
+            if (!sub.hasClass('hide')) {
+                checkbox.prop("checked", true).change();
+                sub.children().find('input').each(function (index, item) {
+                    $(item).prop('checked', true).change()
+                });
+            } else {
+                checkbox.prop("checked", false).change();
+                sub.children().find('input').each(function (index, item) {
+                    $(item).prop('checked', false).change()
+                });
+            }
+            var applyButton = $('#apply-button');
+            if (checkbox.prop("checked")) {
+                applyButton.removeClass("hide").css('top', row.position().top);
+            } else {
+                var checked = $(".ad-filter-section .main-subject-row input:checkbox:checked");
+                if (checked.size()) {
+                    applyButton.css('top', checked.eq(0).position().top);
+                } else {
+                    applyButton.addClass("hide");
+                }
+            }
+            if (!checkbox.is(':checked')) {
+                row.parent().children().first().children().find('input').prop('checked', false).change()
+            }
+            sub.children().find('input').each(function (index, item) {
+                if (!$(item).is(':checked')) {
+                    row.parent().children().first().children().find('input').prop('checked', false).change()
+                    return false;
+                }
+            });
+        } else {
+            if (!checkbox.is(':checked')) {
+                row.parent().parent().children().first().children().find('input').prop('checked', false).change()
+            }
+        }
+    });
+
+    $('.ad-filter-section').on('click', '.select-all-row', function (e) {
+        var checked = $(this).children().find('input').is(":checked");
+        $(this).parent().children().find('input').each(function (index, item) {
+            $(item).prop('checked', checked).change()
+        })
+    });
+
+    $(".filter-selected-subject").on("click", ".main-subject-row, .sub-subject-row", function(e){
+        var row = $(this);
+        var checkbox = row.find('input');
+        var target = $(e.target);
+        if (!target.is('input')) {
+            e.preventDefault();
+            if (checkbox.prop("checked")) {
+                checkbox.prop("checked", false).change();
+            } else {
+                checkbox.prop("checked", true).change();
+            }
+        }
+        getDataAndRun();
+    });
+
+    $('#feed-form').submit(function (e) {
+        e.preventDefault();
+        if ($(this).children().find('.feed-checkbox:checkbox:checked').length > 0) {
+            $(this).unbind('submit').submit();
+        } else {
+            $(this).children().find('.error-alert').html('Subjects can not be empty');
+        }
+    });
+    $('.feed-checkbox').change(function () {
+        $('.subscribe-modal.open').children().find('.error-alert').html('');
+    });
+
+    $('#apply-button').on("click", getDataAndRun);
+
+    function initEditorUploadTool(upload, isReplacePDF){
+        var uploadWrapper = upload.parents(".upload-file-wrapper");
+        upload.each(function(item) {
+            var upload = $(this);
+            new AjaxUpload(upload, {
+                action: upload.data('url'),
+                name: 'finalFile',
+                responseType: 'json',
+                data: {
+                },
+                onSubmit: function(file, ext) {
+                    var fileArray = file.split(".")
+                    if (fileArray[fileArray.length - 1].toLowerCase() != 'pdf') {
+                        uploadWrapper.find('.error-message').html("Please upload PDF file");
+                        return false;
+                    }
+                },
+                onComplete: function(file, response) {
+                    if (0 == response.code) {
+                        uploadWrapper.find('.error-message').html("upload successfully");
+                        var ds = uploadWrapper.parents('.decision-section');
+                        if (isReplacePDF) {
+                            loadEmailContent(ds.find('.send-email-only.accept'), ds.find('.email-form-wrapper'));
+                        } else {
+                            var announceWrapper = uploadWrapper.parents('.email-form-wrapper');
+                            loadAnnounceContent(upload, announceWrapper);
+                        }
+                    } else {
+                        uploadWrapper.find('.error-message').html(response.msg);
+                    }
+                }
+            });
+        });
+    }
+
+    $("#homepage_search_form input[type='text']").keypress(function(e)
+    {
+        if (e.which == 13) {
+            e.preventDefault();
+            $('#homepage_search_form').submit();
+        }
+    });
+
+    $("#menu-search").keypress(function(e)
+    {
+        if(e.which == 13) {
+            e.preventDefault();
+            mainSearch();
+        }
+    });
+
+    $(".announcement-wrapper .paging-feild").keypress(function(e)
+    {
+        if(e.which == 13) {
+            var url = $(this).data("url");
+            url = url.replace("00000", $(this).val());
+            window.location = url;
+        }
+    });
+
+    $("#medium-menu-search").keypress(function(e)
+    {
+        if (e.which == 13) {
+            e.preventDefault();
+            $("#menu-search").val($(this).val());
+            mainSearch();
+        }
+    });
+
+    $("#menu-search-adjust .search-icon").click(function(e)
+    {
+        e.preventDefault();
+        mainSearch();
+    });
+
+    $(".submission-list-table .assign-editor, .manuscript-info .assign-editor").autocomplete({
+        source: $(".submission-list-table .assign-editor").data('url') || $(".manuscript-info .assign-editor").data('url'),
+        minLength: 2,
+        select: function(event, ui) {
+            var input = $(this);
+            var setLink = input.parent().next('a');
+            setLink.show().data('user-id', ui.item.id);
+        }
+    });
+
+    $(".editor-search-form #search-editor").autocomplete({
+        source: $(".submission-list-table .assign-editor").data('url') || $(".manuscript-info .assign-editor").data('url'),
+        minLength: 2,
+        select: function(event, ui) {
+            $(this).next("#search-editor-value").val(ui.item.id);
+        }
+    });
+
+    $(".submission-list-table, .manuscript-info").on('click', '.set-assigned-editor', function(e){
+        e.preventDefault();
+        var setLink = $(this);
+        var td = setLink.parent();
+        $.post(setLink.attr('href'), {"user_id": setLink.data('user-id')}, function(){
+            var name = td.find(".assigned-input-wrapper").hide().find("input").val();
+            td.find(".assigned-editor-wrapper").show().find("span").html(name);
+            setLink.hide();
+        });
+    });
+    $(".submission-list-table, .manuscript-info").on('click', '.change-assign-editor', function(e){
+        e.preventDefault();
+        var changeLink = $(this);
+        var td = changeLink.parents(".assign-editor-block");
+        td.find(".assigned-editor-wrapper").hide();
+        td.find(".assigned-input-wrapper").show();
+    });
+    $(".submission-list-table, .manuscript-info").on('click', '.cancel-change', function(e){
+        e.preventDefault();
+        var changeLink = $(this);
+        var td = changeLink.parents(".assign-editor-block");
+        td.find(".assigned-editor-wrapper").show();
+        td.find(".assigned-input-wrapper").hide();
+        td.find(".set-assigned-editor").hide();
+    });
+
+    $(".submission-list-table, .manuscript-info").on('click', '.open-change-status', function(e){
+        e.preventDefault();
+        var changeLink = $(this);
+        var td = changeLink.parents(".change-status-block");
+        td.find(".change-status-wrapper").show();
+        changeLink.hide();
+    });
+    $(".submission-list-table, .manuscript-info").on('click', '.change-status-cancel', function(e){
+        e.preventDefault();
+        var changeLink = $(this);
+        var td = changeLink.parents(".change-status-block");
+        td.find(".change-status-wrapper").hide();
+        td.find(".open-change-status").show();
+    });
+    $(".submission-list-table, .manuscript-info").on('click', 'a.set-status', function(e){
+        e.preventDefault();
+        var setLink = $(this);
+        var statusId = setLink.parent().find('select').val();
+        $.post(setLink.data('url'), {"status_id": statusId}, function(data){
+            if (data.success) {
+                location.reload();
+            }
+        });
+    });
+
+    $('.reCaptcha').on('click', function(e){
+        e.preventDefault();
+        $('#captchaImg').attr('src', $('#captchaImg').attr('src').split('?')[0] + '?' + new Date().getTime());
+        $('.captchaImg').attr('src', $('.captchaImg').attr('src').split('?')[0] + '?' + new Date().getTime());
+    });
+
+    $('.reCaptchaNewsletter').on('click', function(e) {
+        e.preventDefault();
+        $('#captchaImgNewsletter').attr('src', $('#captchaImgNewsletter').attr('src').split('?')[0] + '?' + new Date().getTime());
+    });
+
+    $('.reCaptchaSubscribe').on('click', function(e) {
+        e.preventDefault();
+        $(this).prev().attr('src', $('#captchaImgSubscribe').attr('src').split('?')[0] + '?' + new Date().getTime());
+    });
+
+    $('#advisory_board_wrapper').on('click', 'a.board-member-name', function(e){
+        e.preventDefault();
+        var target = $(this).parent('div').next('div.board-member-aff').eq(0);
+        var isHide = target.hasClass('hide');
+        $('div.board-member-aff').addClass('hide');
+        if (isHide) {
+            target.removeClass('hide');
+        }
+    });
+
+    $('.close-cite-reveal').on('click', function(){
+        $("#modalCite").foundation('reveal', 'close');
+    });
+    if (supportBrowserCopy()) {
+        $('.copy-and-close-reveal').show();
+        $('.copy-and-close-reveal').on('click', function(){
+            $("#modalCite").find('.copy-button').click();
+            $("#modalCite").foundation('reveal', 'close');
+        });
+    }
+
+    $(".abstract-figures-list, .supplementary-wrapper, .file-link-list").on('click', '.remove-link', function(e){
+        e.preventDefault();
+        var link = $(this);
+        if (confirm('Are you sure you want to remove this Figure?')) {
+            $.post(link.attr('href'), function(data){
+                if (data.success) {
+                    link.parent('span').remove();
+                }
+            });
+        }
+    });
+
+    $('#add-funder-btn').on('click', function(e) {
+        e.preventDefault();
+        var prototype = $("#submissionFunders").data('prototype'),
+            $addbtn = $(this),
+            fundersWrapper = $('#funders-wrapper'),
+            indexArray = [0];
+        fundersWrapper.find('.funder-item input').each(function(index, ele){
+            indexArray.push(ele.name.match(/\[funders\]\[(\d+)\]/)[1]);
+        });
+        var newForm = prototype.replace(/__name__/g, Math.max.apply({}, indexArray) + 1);
+        fundersWrapper.append(newForm);
+    });
+    $("#funders-wrapper").on('click', '.remove-funder-btn', function () {
+        $(this).closest(".row.funder-item").remove();
+    });
+
+    $('.search-result.paging-feild').on('keyup', function(e){
+        if(e.which == 13) {
+            e.preventDefault();
+            var url = window.location.href;
+            var page = parseInt($(this).val(), 10);
+            if (/page_num=\d+/.test(url)) {
+                url = url.replace(/page_num=\d+/, 'page_num=' + page);
+            } else {
+                var separator = url.indexOf('?') > -1 ? '&' : '?';
+                url = url + separator + 'page_num=' + page;
+            }
+            window.location.href = url;
+            return false;
+        }
+    });
+
+    $('#new_update_alert').on('click', function(e) {
+        e.preventDefault();
+        var link = $(this);
+        link.prop('disabled', true);
+        if (link.data('is-login')) {
+            $.post(link.data('url'), {}, function(data){
+                link.prop('disabled', false);
+                if (data.success) {
+                    if (data.op === 'add') {
+                        link.find('span').html('Alert saved');
+                    } else {
+                        link.find('span').html('Alerts');
+                    }
+                }
+            });
+        } else {
+            $('#modalAlert').foundation('reveal', 'open');
+        }
+    });
+    $('#modalAlert form').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var alert_email = $.trim(form.find('#alert_email').val());
+        var captcha_input = $.trim(form.find('#captcha_input').val());
+        if (alert_email && captcha_input) {
+            $.post(form.attr('action'), form.serialize(), function(data){
+                if (data.success) {
+                    $('#modalAlert .msg').show().html(data.msg.join('<br>'));
+                } else {
+                    $('#modalAlert .msg').show().html(data.msg.join('<br>'));
+                }
+            });
+        }
+    });
+    $('.select2').select2({
+        width: '100%'
+    });
+    $('#switch_user_email').select2({
+        ajax: {
+            url: $("#switch_user_email").data('url'),
+            data: function (params) {
+                return {
+                    search: params?.term?.trim(),
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: $.map(data, function (item) {
+                        return {id: item.value, text: item.label}
+                    })
+                };
+            }
+        }
+    });
+    $('.search_user_email_select2').select2({
+        ajax: {
+            url: $('.search_user_email_select2').data('url'),
+            processResults: function (data) {
+                return {
+                    results: $.map(data, function (item) {
+                        return {id: item.id, text: item.label}
+                    })
+                };
+            }
+        }
+    });
+
+    $("#search_user_email, #new_author_type_email").autocomplete({
+        source: $("#search_user_email, #new_author_type_email").data('url'),
+        minLength: 3,
+        select: function(event, ui) {
+            $("#search_user_email, #new_author_type_email").val(ui.item.label);
+            return false;
+        }
+    });
+
+    $('#add-user-btn').on('click', function(e) {
+        e.preventDefault();
+        var prototype = $("#notificationUsers").data('prototype'),
+            $addbtn = $(this),
+            usersWrapper = $('#users-wrapper'),
+            indexArray = [],
+            nextId = 0;
+        if ($addbtn.hasClass('disabled')) {
+            return false;
+        }
+        usersWrapper.find('.user-item input').each(function(index, ele){
+            indexArray.push(ele.name.match(/\[notificationUsers\]\[(\d+)\]/)[1]);
+        });
+        if (indexArray.length) {
+            nextId = Math.max.apply({}, indexArray) + 1;
+        }
+        var newForm = prototype.replace(/__name__/g, nextId);
+        usersWrapper.append(newForm);
+        if (usersWrapper.find('.user-item').length >= 10) {
+            $addbtn.addClass('disabled').hide();
+        }
+    });
+
+    $("#users-wrapper").on('click', '.remove-user-btn', function () {
+        $(this).closest(".row.user-item").remove();
+        if ($('#users-wrapper').find('.user-item').length < 10) {
+            $('#add-user-btn').removeClass('disabled').show();
+        }
+    });
+
+    $('#add-author-note-btn').on('click', function(e) {
+        e.preventDefault();
+        var prototype = $("#submissionauthorNotes").data('prototype'),
+            $addbtn = $(this),
+            usersWrapper = $('#authorNotes-wrapper'),
+            indexArray = [0];
+
+        usersWrapper.find('.author-note-item input').each(function(index, ele){
+            indexArray.push(ele.name.match(/\[authorNotes\]\[(\d+)\]/)[1]);
+        });
+        var newForm = prototype.replace(/__name__/g, Math.max.apply({}, indexArray) + 1);
+        usersWrapper.append(newForm);
+    });
+
+    $("#authorNotes-wrapper").on('click', '.remove-author-note-btn', function () {
+        $(this).closest(".row.author-note-item").remove();
+    });
+
+    function handleRemoveDataBtn() {
+        if ($(".external-data-form-item").length < 1) {
+            $("#remove-data-btn").hide();
+        } else {
+            $("#remove-data-btn").show();
+        }
+    }
+    handleRemoveDataBtn();
+    $('#add-data-btn').on('click', function(e) {
+        e.preventDefault();
+        var prototype = $("#external-data-prototype").data('prototype'),
+            wrapper = $('#data-form-wrapper'),
+            indexArray = [],
+            nextId = 0;
+
+        wrapper.find('.external-data-form-item input').each(function(index, ele){
+            indexArray.push(ele.name.match(/\[externalData\]\[(\d+)\]/)[1]);
+        });
+        if (indexArray.length > 0) {
+            nextId = Math.max.apply({}, indexArray) + 1
+        }
+        var newForm = prototype.replace(/__name__/g, nextId);
+        wrapper.append(newForm);
+        handleRemoveDataBtn();
+    });
+
+    $("#remove-data-btn").on('click', function () {
+        $("#data-form-wrapper .row.external-data-form-item:last").remove();
+        handleRemoveDataBtn();
+    });
+
+    if ($('#counts-wrapper').size() > 0) {
+        var counts = $('#counts-wrapper');
+        $.get(counts.data('url'), function($data) {
+            if ($data['abs']) {
+                counts.find('.view-number').html($data['abs']);
+                counts.show();
+            }
+            if ($data['pdf']) {
+                counts.find('.download-number').html($data['pdf']);
+            }
+        });
+    }
+
+    $(".similar-manuscripts").on('click', function(e){
+        var btn = $(this);
+        e.preventDefault();
+        var $dialog = $("#similar-manuscripts");
+        $dialog.empty().load($(this).data('url'));
+        $dialog.dialog({
+            width: 600,
+            height: 400,
+            modal: true
+        });
+    });
+
+    $("#sciprintsbundle_update_submission_partial_submit").click(function() {
+        $("#sciprintsbundle_update_submission_keywords").attr("required", false);
+        $("input[id^='sciprintsbundle_update_submission_authors']:not([id$='email'])").each(function() {
+            $(this).attr("required", false);
+        })
+    })
+
+    /*  for newsletter subscription  */
+
+    $("form.newsletterForm").submit(function(e) {
+        e.preventDefault();
+        $('#newsletter_subscribe_error').text('').hide();
+        $.ajax ({
+            url: $(this).data('href'),
+            type: "post",
+            data: $("form.newsletterForm").serialize(),
+            success: function(data) {
+                $('#newsletter_subscribe_error').text(data.message).show();
+                $(".reCaptchaNewsletter").click();
+            }
+        });
+    });
+
+    $(".close-reveal-modal").click(function() {
+        $("#newsletter_captcha_input").val("");
+        $('#newsletter_subscribe_error').text('').hide();
+        $("#subscribe_captcha_input").val("");
+        $('#subscribe_error').text('').hide();
+    });
+
+    $("#subscribe_for_newsletter").click(function() {
+        $(".reCaptchaNewsletter").click();
+    });
+
+
+    $('#add-ext-btn').on('click', function(e) {
+        e.preventDefault();
+        var prototype = $("#submission-exts").data('prototype'),
+            usersWrapper = $('#exts-wrapper'),
+            indexArray = [0];
+        usersWrapper.find('select[class=ext]').each(function(index, ele){
+            indexArray.push(ele.name.match(/\[commentLevels\]\[(\d+)\]/)[1]);
+        });
+        console.log(indexArray);
+        var newForm = prototype.replace(/__name__/g, Math.max.apply({}, indexArray) + 1);
+        usersWrapper.append(newForm);
+    });
+
+    $("#exts-wrapper").on('click', '.remove-ext-btn', function () {
+        $(this).closest(".row.ext-item").remove();
+    });
+    $( "#editor-search-date-start, #editor-search-date-end" ).datepicker({
+        dateFormat: 'yy-mm-dd',
+    });
+
+    function radioChange(e, changeBody) {
+        if (typeof(e) == "undefined") {
+            return false;
+        }
+        if (e.value !== '1' || !e.checked) {
+            changeBody.attr('hidden','hidden');
+            changeBody.parent().attr('hidden','hidden');
+            changeBody.find("input[type=text]").val("");
+            changeBody.find("input[type=file]").val("");
+            changeBody.children().find('input').prop('required', false)
+        } else {
+            changeBody.removeAttr('hidden');
+            changeBody.parent().removeAttr('hidden');
+            changeBody.children().find('input').prop('required', true)
+        }
+    }
+    $(".ethical-approval input[type=radio]").change(function() {
+        radioChange(this, $(".ethical-approval-body"));
+    });
+    radioChange($(".ethical-approval input[type=radio]")[0], $(".ethical-approval-body"));
+    $(".ethical-approval-for-publication input[type=radio]").change(function() {
+        radioChange(this, $(".ethical-approval-form"));
+    });
+    radioChange($(".ethical-approval-for-publication input[type=radio]")[0], $(".ethical-approval-form"));
+
+    $("#academic-editor-section").on('click', '.remove-academic-editor-btn', function () {
+        $(this).parents(".academic-editor-form").remove();
+        handleRemoveAcademicEditorBtn();
+    });
+    handleRemoveAcademicEditorBtn();
+    $("#add-academic-editor-btn").on('click', function() {
+        var prototype = $("#topic-academic-editor").data('prototype'),
+            forms = $("#academic-editor-section .academic-editor-form"),
+            newForm, indexArray = [];
+        for (var i = forms.length - 1; i >= 0; i--) {
+            indexArray.push(forms.eq(i).find('input').attr("name").match(/\[(\d+)\]/)[1]);
+        };
+        newForm = prototype.replace(/__name__/g, Math.max.apply({}, indexArray) + 1);
+        $("#academic-editor-section").append(newForm);
+        handleRemoveAcademicEditorBtn();
+    });
+
+    function handleRemoveAcademicEditorBtn() {
+        if ($(".remove-academic-editor-btn").length <= 1) {
+            $(".remove-academic-editor-btn").hide();
+        } else {
+            $(".remove-academic-editor-btn").show();
+        }
+    }
+
+    $(".form_keyword_tag").tagEditor({
+        forceLowercase: false,
+        delimiter: ',',
+        placeholder: 'separate keywords by comma, e.g. keyword1,keyword2,keyword3'
+    });
+
+    $('body').on('click', '#common-delete-data', function(e){
+        if (confirm('Are you sure to delete this?')) {
+            var url = $(this).data("url");
+            var url_alert_page = $(this).data("url-reload");
+            var feed = new Feed();
+            feed.deleteAlert({"url" :url, 'alert_page':  url_alert_page});
+        }
+    });
+
+    $(document).on('scroll', function () {
+        if ($(window).scrollTop() > 100) {
+            $('.scroll-top-wrapper').addClass('show');
+        } else {
+            $('.scroll-top-wrapper').removeClass('show');
+        }
+    });
+    $('.scroll-top-wrapper').on('click', scrollToTop);
+
+    function scrollToTop() {
+        var element = $('body');
+        var offset = element.offset();
+        var offsetTop = offset.top;
+        $('html, body').animate({scrollTop: offsetTop}, 500, 'linear');
+    }
+
+    $('.notes_section .notes-submit').click(function () {
+        var $this = $(this)
+        var notes = $this.parent().children('textarea').val();
+        $.post($this.data('url'), {notes: notes}, function () {
+            $this.parent().hide();
+            $this.parent().prev().children('.notes-span').html(notes);
+            $this.parent().prev().show();
+        }).error(function () {
+
+        })
+    });
+    // setTimeout(function () {
+    //     $('.alert-box').each(function(i, v) {
+    //         if ($(v).children().hasClass('close')) {
+    //             $(v).children().click()
+    //         }
+    //     })
+    // }, 1500);
+
+    $("#upload-file-dialog-triggle").on('click', function(e){
+        var btn = $(this);
+        e.preventDefault();
+        var $dialog = $("#upload-file-dialog");
+        // $dialog.empty().load($(this).data('url'));
+        $dialog.dialog({
+            width: 650,
+            height: 350,
+            modal: true
+        });
+    });
+    function showInviteListWrapper(url) {
+        $('.invite-list-wrapper').show().load(url, function () {
+            scollToActions()
+        });
+    }
+    $('#invite-ab-button, #invite-volunteer-button').click(function () {
+        showInviteListWrapper($(this).data('url'))
+    })
+    $('.invite-list-wrapper').on('click', '.pagination li a', function (e) {
+        e.preventDefault()
+        var url = $(this).attr('href')
+        if (url != undefined) {
+            showInviteListWrapper(url)
+        }
+    }).on('submit', '#invite-list-search-form', function (e) {
+        e.preventDefault()
+        showInviteListWrapper($(this).attr('action')+'?'+$(this).serialize())
+    }).on('reset', '#invite-list-search-form', function (e) {
+        e.preventDefault()
+        showInviteListWrapper($(this).attr('action'))
+    }).on('click', '#invite-list-table .sort', function () {
+        var sort = $(this).data('sort')
+        var direction = $(this).data('direction') == 'asc' ? 'desc' : 'asc'
+        showInviteListWrapper($('#invite-list-search-form').attr('action')+'?sort='+sort+'&direction='+direction+'&'+$('#invite-list-search-form').serialize())
+    })
+    $('.invite-list-wrapper, .advisory-decision-history, .contact-author-history').on('click', '.list-action', function () {
+        loadEmailContent($(this), $('.email-form-wrapper'));
+    })
+    $('.advisory-decision-history-collapse').click(function () {
+        var $collapse = $(this).children('a');
+        if ($collapse.text() == '-') {
+            $('.advisory-decision-list').hide()
+            $collapse.text('+')
+        } else {
+            $('.advisory-decision-list').show()
+            $collapse.text('-')
+        }
+    })
+
+    $('.volunteer-content').on('click', '.cancel-volunteer-btn', function(e){
+        var btn = $(this);
+        btn.parents('.decision-section').find('.volunteer-content').hide();
+        btn.parents('.decision-section').find('.send-to-volunteer').removeClass('user-active-button');
+        $('.invite-list-wrapper').hide()
+    });
+    $('.volunteer-content').on('click', '.remind-action', function () {
+        loadEmailContent($(this), $('.email-form-wrapper'));
+    })
+    // $('.tinymce').prop('required', false)
+    var $feedbackDialog = $(".feedback-dialog");
+    $('#feedback-btn').click(function () {
+        $feedbackDialog.dialog({
+            title: 'Feedback',
+            width: 450,
+            height: 450,
+            modal: true
+        });
+    })
+    $feedbackDialog.children().find('.cancel').click(function () {
+        $feedbackDialog.children('form')[0].reset()
+        $feedbackDialog.dialog('close');
+    })
+    $feedbackDialog.children().find('input[type="file"]').change(function (e) {
+        const target = e.target
+        const file = target.files ? target.files[0] : ''
+        if (file) {
+            const maxAllowedSize = 2 * 1024 * 1024;
+            if (file.size > maxAllowedSize) {
+                target.value = ''
+                alert('File size limit 2MB')
+                return
+            }
+            if (!file.type.startsWith('image/')) {
+                target.value = ''
+                alert('Please upload image')
+                return
+            }
+        }
+    })
+
+    $('#unsubscribe').click(function () {
+        $.post('', function (resp) {
+            if (resp.code == 0) {
+                toast.success(resp.msg, function () {
+                    $('.unsubscribe-confirm').hide()
+                    $('.unsubscribe-reason').show()
+                })
+            }
+        }, 'json')
+    })
+    $('#unsubscribe-feedback-form').submit(function (e) {
+        e.preventDefault()
+        console.log()
+        $.ajax({
+            url: $(this).attr('action'),
+            data: $(this).serialize(),
+            success: function (resp) {
+                if (resp.code == 0) {
+                    toast.success(resp.msg, function () {
+                        location.href = '/'
+                    })
+                }
+            }
+        })
+    })
+    $('#unsubscribe-feedback-form input[name="reason"]').change(function () {
+        if ($(this).val() == '4') {
+            $('#unsubscribe-feedback-form [name="reason_content"]').prop('required', true).show()
+        } else {
+            $('#unsubscribe-feedback-form [name="reason_content"]').prop('required', false).hide()
+        }
+    })
+
+    $('#subscribe-validate-form').submit(function (e) {
+        e.preventDefault()
+        $.ajax({
+            url: $(this).attr('action'),
+            data: $(this).serialize(),
+            success: function (resp) {
+                if (resp.code == 0) {
+                    location.href = resp.data.url
+                } else {
+                    $('#subscribe_error').text(resp.msg).show();
+                }
+            }
+        })
+    })
+    $('.xml-check').click(function () {
+        $(".decision-section .send-email-only").removeClass("disabled").removeClass('user-active-button');
+        var emailForm = $(this).parents('.decision-section').find('.email-form-wrapper');
+        loadEmailContent($(this), emailForm);
+    })
+    $('.email-form-wrapper').on('click', '#generate-xml', function () {
+        var url = $(this).data('url')
+        $.get(url, function (resp) {
+            if (resp.code == 1) {
+                toast.error(resp.msg)
+            } else {
+                $('.email-form-wrapper').html(resp.data.view)
+                $('#xml-status').html(resp.data.status ? '<strong style="color: green">confirmed</strong>' : '<strong style="color: red">not confirmed</strong>');
+                $('.send-email-only').attr('data-xml-checked', resp.data.status)
+                toast.success(resp.msg)
+            }
+        }, 'json')
+    })
+
+    $('.email-form-wrapper').on('click', '#preview-xml', function () {
+        var url = $(this).data('url')
+        $.get(url, function (resp) {
+            if (resp.code === 0 && resp.data.url) {
+                window.open(resp.data.url)
+            }
+        })
+    })
+
+    $('.email-form-wrapper').on('click', '#check-xml', function () {
+        var url = $(this).data('url')
+        $.get(url, function (resp) {
+            if (resp.msg) {
+                $('.email-form-wrapper').children().find('#check-result').html('<strong style="color:red">'+resp.msg+'</strong>')
+            } else {
+                $('.email-form-wrapper').children().find('#check-result').html('<strong style="color:green">'+'xml is OK!'+'</strong>')
+            }
+        }, 'json')
+    })
+    $('.email-form-wrapper').on('change', '#upload-xml', function () {
+        var url = $(this).data('url')
+        var formData = new FormData()
+        formData.append('xml', $(this)[0].files[0])
+        $.ajax({
+            url: url,
+            type: 'post',
+            contentType: false,
+            processData: false,
+            data: formData,
+            success: function (resp) {
+                if (resp.code == 0) {
+                    $('.email-form-wrapper').html(resp.data.view)
+                    $('#xml-status').html(resp.data.status ? '<strong style="color: green">confirmed</strong>' : '<strong style="color: red">not confirmed</strong>');
+                    $('.send-email-only').attr('data-xml-checked', resp.data.status)
+                    toast.success(resp.msg)
+                } else {
+                    toast.error(resp.msg)
+                }
+            }
+        })
+    })
+    $('.email-form-wrapper').on('click', '#confirm-xml', function () {
+        if (confirm('confirm to submit?')) {
+            $.post($(this).data('url'), function (resp) {
+                if (resp.code == 0) {
+                    location.href = location.pathname
+                }
+            }, 'json')
+        }
+    })
+    $('.email-form-wrapper').on('click', '.cancel-xml-check-btn', function(e){
+        const btn = $(this);
+        $('.email-form-wrapper').html('')
+        $(".xml-check").removeClass("disabled").removeClass('user-active-button');
+    });
+
+    $('#production-assign-editor').click(function () {
+        const url = $('#production-assign-editor').data('url');
+        const id = $('#production-assigned-editor').val();
+        if (!id) {
+            return
+        }
+        $.post(url, {id: id}, function (resp) {
+            if (resp.code == 0) {
+                toast.success(resp.msg)
+            } else {
+                toast.error('something wrong')
+            }
+        }, 'json')
+    })
+
+    $('.faq-accordion').click(function () {
+        if ($(this).parent().next().css('display') == 'none') {
+            $(this).parent().next().css('display', 'block')
+            $(this).html('<i class="fa fa-minus" aria-hidden="true"></i>')
+        } else {
+            $(this).parent().next().css('display', 'none')
+            $(this).html('<i class="fa fa-plus" aria-hidden="true"></i>')
+        }
+    })
+})();
